@@ -1,4 +1,5 @@
 ﻿using Google.GenAI; // Confirm namespace for your package
+using Google.GenAI.Types;
 using Microsoft.Extensions.Configuration; // For API key
 using System.Text.Json;
 using VillageArchitect.Models; // Your namespace
@@ -18,13 +19,11 @@ public class GeminiService
 
     public async Task<VillageData> GenerateVillageDetails(string villageName, int popCount)
     {
-        var prompt = $"""
-            Generate a massive, detailed fantasy village dossier for the Shadowdark RPG. 
-            Name: {villageName}
-            Population: {popCount}
-            Atmosphere: Gritty, dark, low-magic, old-school feel.
-            
-            REQUIRED DATA:
+        var goodPart = $"""
+                Generate a massive, detailed fantasy village dossier for the Shadowdark RPG. 
+                Name: {villageName}
+                Population: {popCount}
+                Atmosphere: Gritty, dark, low-magic, old-school feel.REQUIRED DATA:
             1. Geography: Moody description of the site by a river.
             2. Description: Elaborate on the general mood and prevalent dangers of the village (Shadowdark style).
             3. Dark Secret: The village's core rot or hidden horror.
@@ -48,6 +47,10 @@ public class GeminiService
             14. GM Notes.
 
             Output JSON schema:
+            """;
+
+
+        var jsonPart1 = $$$"""
             {{
               "geography": "string",
               "description": "string",
@@ -68,23 +71,29 @@ public class GeminiService
               "gmNotes": "string",
               "currentEvents": ["string", "string", "string"],
               "businesses": [
-                {{
-                  "name": "string", "type": "string", "description": "string", "rumor": "string", "encounterHook": "string", "gmNotes": "string",
-                  "marketItems": [ {{ "name": "string", "price": "string", "availability": "Common|Rare|Scarce", "description": "string" }} ],
-                  "owner": {{ "name": "string", "race": "string", "sex": "Male|Female", "role": "string", "trait": "string", "alignment": "Lawful|Neutral|Chaotic", "motivation": "string", "secret": "string" }} 
-                }}
-              ],
-              "residents": [
-                {{
-                  "name": "string", "race": "string", "sex": "Male|Female", "role": "string", "personality": "string", "trait": "string", "alignment": "Lawful|Neutral|Chaotic", "motivation": "string", "secret": "string",
-                  "stats": {{ "hp": number, "ac": number, "atk": "string", "dmg": "string" }},
-                  "relationships": [ {{ "targetName": "string", "score": number, "feeling": "string", "reason": "string" }} ]
-                }}
-              ],
-              "mainQuests": [ {{ "title": "string", "description": "string", "reward": "string" }} ],
-              "sideTreks": [ {{ "title": "string", "description": "string", "reward": "string" }} ]
-            }}
             """;
+
+        var jsonPart2 = $$$"""
+        {{
+          "name": "string", "type": "string", "description": "string", "rumor": "string", "encounterHook": "string", "gmNotes": "string",
+          "marketItems": [ {{ "name": "string", "price": "string", "availability": "Common|Rare|Scarce", "description": "string" }} ],
+          "owner": {{ "name": "string", "race": "string", "sex": "Male|Female", "role": "string", "trait": "string", "alignment": "Lawful|Neutral|Chaotic", "motivation": "string", "secret": "string" }} 
+        }}
+          ],
+          "residents": [
+            {{
+              "name": "string", "race": "string", "sex": "Male|Female", "role": "string", "personality": "string", "trait": "string", "alignment": "Lawful|Neutral|Chaotic", "motivation": "string", "secret": "string",
+              "stats": {{ "hp": number, "ac": number, "atk": "string", "dmg": "string" }},
+              "relationships": [ {{ "targetName": "string", "score": number, "feeling": "string", "reason": "string" }} ]
+            }}
+          ],
+          "mainQuests": [ {{ "title": "string", "description": "string", "reward": "string" }} ],
+          "sideTreks": [ {{ "title": "string", "description": "string", "reward": "string" }} ]
+        }}
+        """; 
+        
+        var prompt = goodPart + jsonPart1 + jsonPart2;
+
 
         // Configure for JSON response
         var config = new GenerateContentConfig
@@ -99,7 +108,9 @@ public class GeminiService
             config: config
         );
 
-        var rawJson = response.Candidates[0].Content.Parts[0].Text ?? "{}"; // Extract JSON text
+        // Safely extract JSON text, handling possible nulls to avoid CS8602
+        string rawJson = response?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? "{}";
+
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true }; // Flexible parsing
         return JsonSerializer.Deserialize<VillageData>(rawJson, options) ?? new VillageData(villageName, popCount, string.Empty, string.Empty, Array.Empty<DemographicEntry>(), string.Empty, string.Empty, string.Empty, string.Empty, Array.Empty<Business>(), Array.Empty<Landmark>(), Array.Empty<DetailedNPC>(), Array.Empty<SettlementRelation>(), Array.Empty<Festival>(), Array.Empty<Quest>(), Array.Empty<Quest>(), Array.Empty<string>(), string.Empty, null, null);
     }
@@ -127,12 +138,14 @@ public class GeminiService
             config: config
         );
 
-        var imageBytes = response.GeneratedImages.First().Image.ImageBytes;
+        // Safely handle possible nulls to avoid CS8604 and CS8602
+        var imageBytes = response?.GeneratedImages?.FirstOrDefault()?.Image?.ImageBytes;
+        if (imageBytes == null)
+        {
+            throw new InvalidOperationException("No image was generated by the Gemini API.");
+        }
         return $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}"; // Return base64 URL for display
     }
 
     // Add more methods as needed
 }
-// Ensure the namespace 'VillageArchitect.Models' exists and contains the required types.
-// If your models are in a different namespace or folder, update the using directive accordingly.
-// If the 'Models' folder does not exist, create it and place your model classes (e.g., VillageData, DemographicEntry, Business, etc.) there.
