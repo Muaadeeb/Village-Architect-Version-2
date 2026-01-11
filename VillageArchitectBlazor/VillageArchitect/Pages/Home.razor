@@ -1,7 +1,56 @@
 ﻿@page "/"
+@using VillageArchitect.Pages.Components.Sections
+@using VillageArchitect.Services
+@using VillageArchitect.Models
+@using VillageArchitect.Utils
+@using VillageArchitect.Constants
+@using System.Text.Json
+@inject GeminiService GeminiService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@* @inject MudServices MudServices // For snackbar if needed *@
 
-<PageTitle>Home</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
+    <MudAppBar Elevation="1" Dense="true" Color="Color.Primary">
+        <MudText Typo="Typo.h5" Class="ml-3">🔥 Shadowdark Architect</MudText>
+        <MudSpacer />
+        <InputFile OnChange="LoadVillage" class="hidden" @ref="fileInputRef" />
+        <MudButton OnClick="() => fileInputRef.Element.Click()" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Upload" Class="mr-2">Import</MudButton>
+        
+        @if (Village != null)
+        {
+            <MudButton OnClick="SaveVillage" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Download" Class="mr-2">Download</MudButton>
+        }
 
-<h1>Hello, world!</h1>
+        <MudButton OnClick="Print" Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Print" Class="mr-2">Print</MudButton>
+        <MudButton OnClick="HandleGenerate" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoFixHigh" Size="Size.Large" Disabled="Loading">
+            @if (Loading) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> } Manifest Village
+        </MudButton>
+    </MudAppBar>
 
-Welcome to your new app.
+    @if (Village != null)
+    {
+        <MudGrid Spacing="3" Class="mt-4">
+            <MudItem xs="12"><MudText Typo="Typo.h3" Align="Align.Center">{Village.Name.ToUpper()}</MudText></MudItem>
+            <MudItem xs="6"><NarrativeSection Description="@Village.Description" /></MudItem>
+            <MudItem xs="6"><CensusSection Village="@Village" OnRedraw="HandleManualRedraw" /></MudItem>
+            <MudItem xs="6"><MoraleSection Morale="@Village.Morale" /></MudItem>
+            <MudItem xs="6"><AtmosphereSection Atmosphere="@Village.Atmosphere" Geography="@Village.Geography" /></MudItem>
+            <!-- Add more: RelationsSection, FestivalsSection, BusinessesSection (MudTable for items), LandmarksSection, ResidentsSection (MudExpansionPanels for NPCs/relationships), QuestsSection, CurrentEventsSection, GmNotesSection -->
+            <!-- Map: <MapSection MapUrl="@Village.MapUrl" OnGenerate="HandleGenerateMap" /> -->
+            <!-- POI: <CrawlBoxSection Poi="@Poi" OnGenerate="HandleGeneratePOI" /> -->
+        </MudGrid>
+    }
+
+    @if (Loading)
+    {
+        <MudOverlay Visible="true" DarkBackground="true" Absolute="true">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Class="mt-4">Manifesting Dossier...</MudText>
+        </MudOverlay>
+    }
+</MudContainer>
+
+@code {
+    // State and methods as in previous examples (Village, Poi, EditableNotes, ManualDemo, HandleGenerate calling GeminiService, etc.)
+}

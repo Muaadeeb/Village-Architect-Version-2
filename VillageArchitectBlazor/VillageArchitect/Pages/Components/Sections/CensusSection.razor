@@ -1,0 +1,31 @@
+﻿@using VillageArchitect.Models
+<MudCard>
+    <MudCardHeader><MudText Typo="Typo.h6">Census</MudText></MudCardHeader>
+    <MudCardContent>
+        @if (Village != null)
+        {
+            <MudChart ChartType="ChartType.Pie" InputData="@data" InputLabels="@labels" Width="300px" Height="300px" />
+            <MudTable Items="@Village.Demographics" Dense="true" Hover="true">
+                <HeaderContent><MudTh>Designation</MudTh><MudTh>Count</MudTh></HeaderContent>
+                <RowTemplate><MudTd>@context.Race</MudTd><MudTd>@context.Count</MudTd></RowTemplate>
+            </MudTable>
+            <MudButton OnClick="@(async () => await OnRedraw.InvokeAsync())">Redraw</MudButton>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public VillageData? Village { get; set; }
+    [Parameter] public EventCallback OnRedraw { get; set; }
+    private double[] data = Array.Empty<double>();
+    private string[] labels = Array.Empty<string>();
+
+    protected override void OnParametersSet()
+    {
+        if (Village != null)
+        {
+            data = Village.Demographics.Select(d => (double)d.Count).ToArray();
+            labels = Village.Demographics.Select(d => d.Race).ToArray();
+        }
+    }
+}
