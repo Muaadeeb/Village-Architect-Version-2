@@ -33,7 +33,7 @@ var customTheme = new MudTheme
     {
         Primary = Colors.Amber.Darken2, // "Manifest" button
         Secondary = Colors.Brown.Darken4, // Accents
-        Background = Colors.Grey.Lighten4,
+        Background = Colors.Gray.Lighten4,
         AppbarBackground = Colors.Amber.Darken4,
         TextPrimary = Colors.Shades.Black,
         Error = Colors.Red.Darken4 // For "Pariah" styles, etc.
@@ -42,7 +42,7 @@ var customTheme = new MudTheme
     {
         Primary = Colors.Amber.Lighten1,
         Secondary = Colors.Brown.Lighten2,
-        Background = Colors.Grey.Darken4,
+        Background = Colors.Gray.Darken4,
         AppbarBackground = Colors.Amber.Darken3,
         TextPrimary = Colors.Shades.White
     },
