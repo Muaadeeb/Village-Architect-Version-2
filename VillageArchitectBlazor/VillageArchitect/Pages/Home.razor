@@ -5,18 +5,19 @@
 @using VillageArchitect.Utils
 @using VillageArchitect.Constants
 @using System.Text.Json
+@using MudBlazor
 @inject GeminiService GeminiService
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
-@* @inject MudServices MudServices // For snackbar if needed *@
+@inject ISnackbar Snackbar
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
     <MudAppBar Elevation="1" Dense="true" Color="Color.Primary">
         <MudText Typo="Typo.h5" Class="ml-3">🔥 Shadowdark Architect</MudText>
         <MudSpacer />
-        <InputFile OnChange="LoadVillage" class="hidden" @ref="fileInputRef" />
-        <MudButton OnClick="() => fileInputRef.Element.Click()" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Upload" Class="mr-2">Import</MudButton>
-        
+        <MudButton OnClick="TriggerFileInput" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Upload" Class="mr-2">Import</MudButton>
+        <input @ref="fileInputRef" type="file" style="display:none" />
+
         @if (Village != null)
         {
             <MudButton OnClick="SaveVillage" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Download" Class="mr-2">Download</MudButton>
@@ -36,9 +37,18 @@
             <MudItem xs="6"><CensusSection Village="@Village" OnRedraw="HandleManualRedraw" /></MudItem>
             <MudItem xs="6"><MoraleSection Morale="@Village.Morale" /></MudItem>
             <MudItem xs="6"><AtmosphereSection Atmosphere="@Village.Atmosphere" Geography="@Village.Geography" /></MudItem>
-            <!-- Add more: RelationsSection, FestivalsSection, BusinessesSection (MudTable for items), LandmarksSection, ResidentsSection (MudExpansionPanels for NPCs/relationships), QuestsSection, CurrentEventsSection, GmNotesSection -->
-            <!-- Map: <MapSection MapUrl="@Village.MapUrl" OnGenerate="HandleGenerateMap" /> -->
-            <!-- POI: <CrawlBoxSection Poi="@Poi" OnGenerate="HandleGeneratePOI" /> -->
+            <!-- Add remaining sections here, e.g.: -->
+            <!-- <MudItem xs="12"><RelationsSection Relations="@Village.SettlementRelations" /></MudItem> -->
+            <!-- <MudItem xs="12"><FestivalsSection Festivals="@Village.Festivals" /></MudItem> -->
+            <!-- <MudItem xs="12"><BusinessesSection Businesses="@Village.Businesses" /></MudItem> -->
+            <!-- <MudItem xs="12"><LandmarksSection Landmarks="@Village.Landmarks" /></MudItem> -->
+            <!-- <MudItem xs="12"><ResidentsSection Residents="@Village.Residents" /></MudItem> -->
+            <!-- <MudItem xs="6"><QuestsSection Quests="@Village.MainQuests" Title="Main Quests" /></MudItem> -->
+            <!-- <MudItem xs="6"><QuestsSection Quests="@Village.SideTreks" Title="Side Treks" /></MudItem> -->
+            <!-- <MudItem xs="12"><CurrentEventsSection Events="@Village.CurrentEvents" /></MudItem> -->
+            <!-- <MudItem xs="12"><GmNotesSection Notes="@EditableNotes" OnUpdate="UpdateNotes" /></MudItem> -->
+            <!-- <MudItem xs="12"><MapSection MapUrl="@Village.MapUrl" OnGenerate="HandleGenerateMap" /></MudItem> -->
+            <!-- <MudItem xs="12"><CrawlBoxSection Poi="@Poi" OnGenerate="HandleGeneratePOI" /></MudItem> -->
         </MudGrid>
     }
 
@@ -52,5 +62,86 @@
 </MudContainer>
 
 @code {
-    // State and methods as in previous examples (Village, Poi, EditableNotes, ManualDemo, HandleGenerate calling GeminiService, etc.)
+    private bool Loading;
+    private VillageData? Village;
+    private PointOfInterest? Poi;
+    private string EditableNotes = string.Empty;
+    private DemographicEntry[] ManualDemo = Array.Empty<DemographicEntry>();
+    private ElementReference fileInputRef;
+
+    private async Task HandleGenerate()
+    {
+        Loading = true;
+        StateHasChanged();
+        try
+        {
+            var pop = Random.Shared.Next(200, 301);
+            Village = await GeminiService.GenerateVillageDetails("Cinderglade", pop); // Update name if dynamic
+            EditableNotes = Village.GmNotes;
+            ManualDemo = Village.Demographics;
+            Poi = null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error generating village: " + ex.Message, Severity.Error);
+        }
+        finally { Loading = false; StateHasChanged(); }
+    }
+
+    private void HandleManualRedraw()
+    {
+        if (Village == null) return;
+        var totalPop = ManualDemo.Sum(d => d.Count);
+        Village = Village with { Population = totalPop, Demographics = ManualDemo.ToArray() };
+    }
+
+    private async Task HandleGenerateMap()
+    {
+        if (Village == null) return;
+        Loading = true;
+        try
+        {
+            var url = await GeminiService.GenerateVillageMap(Village);
+            Village = Village with { MapUrl = url };
+        }
+        finally { Loading = false; }
+    }
+
+    private async Task HandleGeneratePOI()
+    {
+        if (Village == null) return;
+        Loading = true;
+        try { Poi = await GeminiService.GeneratePOI(Village); }
+        finally { Loading = false; }
+    }
+
+    private async Task SaveVillage()
+    {
+        if (Village == null) return;
+        var villageToSave = Village with { GmNotes = EditableNotes, Poi = Poi };
+        var json = JsonSerializer.Serialize(villageToSave);
+        await JS.InvokeVoidAsync("saveAsFile", $"{Village.Name.Replace(" ", "_")}_Dossier.json", json);
+    }
+
+    private async Task LoadVillage(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        using var stream = file.OpenReadStream();
+        using var reader = new StreamReader(stream);
+        var json = await reader.ReadToEndAsync();
+        Village = JsonSerializer.Deserialize<VillageData>(json);
+        EditableNotes = Village?.GmNotes ?? string.Empty;
+        ManualDemo = Village?.Demographics ?? Array.Empty<DemographicEntry>();
+        Poi = Village?.Poi;
+    }
+
+    private async Task Print() => await JS.InvokeVoidAsync("window.print");
+
+    private async Task TriggerFileInput()
+    {
+        await fileInputRef.FocusAsync();
+        await JS.InvokeVoidAsync("eval", "document.querySelector('[type=file]').click()");
+    }
+
+    // Add UpdateNotes if editable GM notes needed: private void UpdateNotes(string notes) { EditableNotes = notes; }
 }
