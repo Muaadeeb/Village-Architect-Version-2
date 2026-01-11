@@ -1,4 +1,6 @@
-﻿<MudThemeProvider IsDarkMode="true" /> <!-- Enable dark mode by default for fantasy theme; or use Theme="@customTheme" if defined in Program.cs -->
+﻿@using MudBlazor
+
+<MudThemeProvider Theme="@customTheme" IsDarkMode="true" /> <!-- Dark mode by default for gritty fantasy; remove IsDarkMode if you want light -->
 <MudDialogProvider />
 <MudSnackbarProvider />
 
@@ -12,3 +14,34 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    private MudTheme customTheme = new MudTheme
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = Colors.Amber.Darken2, // "Manifest" button
+            Secondary = Colors.Brown.Darken4, // Accents
+            Background = Colors.Gray.Lighten4,
+            AppbarBackground = Colors.Amber.Darken4,
+            TextPrimary = Colors.Shades.Black,
+            Error = Colors.Red.Darken4 // For "Pariah" styles, etc.
+        },
+        PaletteDark = new PaletteDark // Dark mode for Shadowdark vibe
+        {
+            Primary = Colors.Amber.Lighten1,
+            Secondary = Colors.Brown.Lighten2,
+            Background = Colors.Gray.Darken4,
+            AppbarBackground = Colors.Amber.Darken3,
+            TextPrimary = Colors.Shades.White
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography
+            {
+                FontFamily = new[] { "Roboto", "Helvetica", "Arial", "sans-serif" }
+            }
+            // Add more styles if needed, e.g., H1 = new H1 { ... }
+        }
+    };
+}
